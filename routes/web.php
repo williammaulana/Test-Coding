@@ -22,3 +22,6 @@ Route::post('/create_ordered', 'App\Http\Controllers\ProductController@create_or
 Route::post('/create_current_stock', 'App\Http\Controllers\ProductController@create_current_stock');
 Route::post('/update/{{model_number}}', 'App\Http\Controllers\ProductController@update');
 Route::post('/delete/{{model_number}}', 'App\Http\Controllers\ProductController@delete');
+
+Route::get('/inventory_list', 'App\Http\Controllers\ProductController@inventory_list');
+Route::get('/order_list', 'App\Http\Controllers\ProductController@order_list');
