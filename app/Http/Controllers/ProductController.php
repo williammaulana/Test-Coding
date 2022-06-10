@@ -3,30 +3,56 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\http\models\Product;
-use DB;
+use App\models\Product;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
     public function create_ordered(Request $request){
 
-        $data_product = Product::all();
-        $model_number = trim($request->model_number, '00 ');
+        $new_Order_qty = $request->ordered_quantity;
 
-        $product->model_number = $model_number;
-        $product->category_product = $request->category_product;
+            $product = Product::where('model_number', $request->model_number)->get();
 
-        if ($request->ordered_quantity != '') {
-            foreach ($data_product as $row) {
-                $new_order_quantity = $row->ordered_quantity + $request->ordered_quantity;
+            if ($request->current_quantity != 0 ) {
+
+                $new_Order_qty = Product::where('model_number', $request->model_number)->sum('ordered_quantity') - $request->current_quantity;
+
+                if ($request->current_quantity != '') {
+                
+                    $request->current_quantity = 0;
+                
+                }else if ($request->ordered_quantity != '') {
+                
+                    $request->ordered_quantity = 0;
+                
+                }
+                
+                
+                DB::table('products')->insert([
+                    'model_number' => $request->model_number,
+                    'category_product' => $request->category_product,
+                    'ordered_quantity' => $new_Order_qty,
+                    'current_quantity' => $request->current_quantity,
+                    'price' => $request->price,
+                    'no_invoice' => $request->no_invoice
+                ]);
+                
+                foreach ($product as $row) {
+                    
+                    DB::table('products')->where('id', $row->id)->delete();
+                }
+            }else {
+                
+                DB::table('products')->insert([
+                    'model_number' => $request->model_number,
+                    'category_product' => $request->category_product,
+                    'ordered_quantity' => $new_Order_qty,
+                    'current_quantity' => $request->current_quantity,
+                    'price' => $request->price,
+                    'no_invoice' => $request->no_invoice
+                ]);
             }
-
-            $product->ordered_quantity = $new_order_quantity;
-        }
-        $product->price = $request->price;
-        $product->no_invoice = $request->no_invoice;
-
-        DB::table('products')->insert($product);
 
         return response()->json([
             'message' => 'Add Product'
@@ -34,44 +60,17 @@ class ProductController extends Controller
 
     }
 
-    public function create_current_stock(Request $request){
-
-        $data_product = Product::all();
-        $model_number = trim($request->model_number, '00 ');
-
-        $product->model_number = $model_number;
-        $product->category_product = $request->category_product;
-
-        if ($request->current_quantity != '') {
-            foreach ($data_product as $row) {
-                $new_order_quantity = $row->current_quantity + $request->current_quantity;
-            }
-
-            $product->current_quantity = $new_current_quantity;
-            $product->ordered_quantity = $request->ordered_quantity - $new_current_quantity;
-        }
-        $product->price = $request->price;
-        $product->no_invoice = $request->no_invoice;
-
-        DB::table('products')->insert($product);
-
-        return response()->json([
-            'message' => 'Add Product stock Current'
-        ]);
-    }
-
     public function update(Request $request, $model_number){
 
-        $product = Product::find($model_number);
-
-        $product->model_number = $request->model_number;
-        $product->category_product = $request->category_product;
-        $product->ordered_quantity = $request->ordered_quantity;
-        $product->current_quantity = $request->current_quantity;
-        $product->price = $request->price;
-        $product->no_invoice = $request->no_invoice;
-
-        $product->save();
+        DB::table('products')->where('model_number', $model_number)
+        ->update([
+            'model_number' => $request->model_number,
+            'category_product' => $request->category_product,
+            'ordered_quantity' => $request->ordered_quantity,
+            'current_quantity' => $request->current_quantity,
+            'price' => $request->price,
+            'no_invoice' => $request->no_invoice
+        ]);
 
         return response()->json([
             'message' => 'update Product'
@@ -79,47 +78,29 @@ class ProductController extends Controller
     }
 
     public function delete($model_number){
-        Product::destroy($model_number);
+        
+        DB::table('products')->where('model_number', $model_number)->delete();
+
         return response()->json([
             'message' => 'Delete Product'
         ]);
     }
 
     public function inventory_list(){
-        $product = Product::all();
-        $avg = Product::avg('price');
-
-        foreach ($product as $row) {
-            
-            $data[] = array(
-                'Model' => $row->model_number,
-                'Category' => $row->category_product,
-                'Ordered_Qty' => $row->ordered_quantity,
-                'Current_Qty' => $row->current_quantity,
-                'avg' => $avg,
-            );
+        $product = DB::table('products')->groupBy('model_number')->selectRaw('model_number, category_product, ordered_quantity, current_quantity, avg(price) as avg_price')->get();
+        // $avg = Product::avg('price');
             
             return response()->json([
-                $data = $data
+                'data' => $product,
             ]);
-        }
     }
 
     public function order_list(){
-        $product = Product::all();
 
-        foreach ($product as $row) {
-            
-            $data[] = array(
-                'Model' => $row->model_number,
-                'Ordered_Qty' => $row->ordered_quantity,
-                'No_invoice' => $row->no_invoice,
-                'Price' =>$row->price,
-            );
+        $product = DB::table('products')->select('model_number', 'ordered_quantity', 'no_invoice', 'price')->where('model_number', '!=' ,'')->whereNotNull('ordered_quantity')->get();
             
             return response()->json([
-                $data = $data
+                'data' => $product
             ]);
-        }
     }
 }
